@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="재생목록 메이커">
+<meta name="theme-color" content="#14161a">
+<title>재생목록 메이커</title>
+<style>
+:root{--bg:#14161a;--card:#1d2026;--line:#2c313a;--tx:#eceef2;--sub:#98a0ad;--ac:#ff4d4d;--ac2:#3b82f6;--ok:#34c759}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;line-height:1.45}
+.wrap{max-width:560px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom))}
+h1{font-size:22px;margin:4px 0 2px}
+.sub{color:var(--sub);font-size:13px;margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--sub);margin:0 0 6px}
+input[type=text],textarea,select{width:100%;background:#111317;color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit}
+textarea{min-height:170px;resize:vertical}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+button,.btn{appearance:none;border:0;border-radius:11px;padding:12px 14px;font-size:15px;font-weight:600;font-family:inherit;color:#fff;background:var(--ac2);text-decoration:none;text-align:center;display:block;cursor:pointer}
+button.red,.btn.red{background:var(--ac)}
+button.gray,.btn.gray{background:#343a45}
+button:disabled{opacity:.45}
+.mt{margin-top:10px}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);margin:10px 0 0}
+.chk input{width:18px;height:18px}
+details summary{cursor:pointer;font-weight:600}
+details ol{padding-left:20px;font-size:14px;color:var(--sub)}
+details li{margin:6px 0}
+code{background:#111317;padding:1px 5px;border-radius:5px;font-size:12.5px;word-break:break-all}
+.song{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.song:first-child{border-top:0}
+.song img{width:96px;height:54px;object-fit:cover;border-radius:8px;background:#111317;flex:none}
+.song .info{flex:1;min-width:0}
+.q{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t{font-size:14px;font-weight:600;margin:1px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ch{font-size:12px;color:var(--sub)}
+.ctl{display:flex;gap:6px;margin-top:6px;align-items:center}
+.ctl button{padding:5px 10px;font-size:13px;border-radius:8px;background:#343a45}
+.ctl .n{font-size:12px;color:var(--sub);min-width:34px;text-align:center}
+.song.off{opacity:.35}
+.song.miss .t{color:#ffb04d}
+#log{font-size:13px;color:var(--sub);white-space:pre-wrap;margin-top:10px}
+#msg{display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;background:#3a2226;color:#ffb3b3}
+#msg.ok{background:#1f3326;color:#aef0bf}
+.bar{height:6px;background:#111317;border-radius:99px;overflow:hidden;margin-top:10px;display:none}
+.bar i{display:block;height:100%;width:0;background:var(--ac2);transition:width .2s}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎧 재생목록 메이커</h1>
+  <p class="sub">곡 목록을 붙여넣으면 내 유튜브 계정에 재생목록을 만들어줘요</p>
+
+  <div class="card">
+    <details id="setup">
+      <summary>처음 한 번만: 구글 설정</summary>
+      <ol>
+        <li><code>console.cloud.google.com</code> 에서 새 프로젝트 만들기</li>
+        <li>API 및 서비스 → 라이브러리 → <b>YouTube Data API v3</b> 사용 설정</li>
+        <li>OAuth 동의 화면 → 외부(External) → 앱 이름 아무거나 → <b>테스트 사용자에 내 구글 계정 추가</b></li>
+        <li>사용자 인증 정보 → 만들기 → <b>OAuth 클라이언트 ID</b> → 유형 <b>웹 애플리케이션</b></li>
+        <li>승인된 자바스크립트 원본에 이 앱 주소의 도메인 추가 (예: <code>https://내아이디.github.io</code>, 뒤에 경로·슬래시 없이)</li>
+        <li>발급된 클라이언트 ID를 아래에 붙여넣기</li>
+      </ol>
+      <label for="cid">OAuth 클라이언트 ID</label>
+      <input id="cid" type="text" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </details>
+  </div>
+
+  <div class="card">
+    <label for="list">곡 목록 (한 줄에 한 곡, 예: 아이유 - 밤편지)</label>
+    <textarea id="list" placeholder="아이유 - 밤편지&#10;10cc - Dreadlock Holiday&#10;Norah Jones - Don't Know Why"></textarea>
+    <label class="chk"><input type="checkbox" id="optAudio" checked> 검색어에 “official audio” 붙이기 (커버·라이브 줄이기)</label>
+    <button class="mt" id="btnSearch">🔍 곡 찾기</button>
+    <div class="bar" id="bar"><i></i></div>
+    <div id="log"></div>
+  </div>
+
+  <div class="card hide" id="resultCard">
+    <div id="songs"></div>
+    <div class="mt">
+      <label for="plName">재생목록 이름</label>
+      <input id="plName" type="text">
+    </div>
+    <div class="mt">
+      <label for="priv">공개 범위</label>
+      <select id="priv">
+        <option value="private">비공개 (나만 보기)</option>
+        <option value="unlisted">일부 공개 (링크 있는 사람)</option>
+        <option value="public">공개</option>
+      </select>
+    </div>
+    <button class="red mt" id="btnMake">▶ 재생목록 만들기</button>
+    <div id="done" class="hide mt">
+      <a class="btn red" id="openApp" href="#">유튜브 앱에서 열기</a>
+      <a class="btn gray mt" id="openWeb" href="#" target="_blank" rel="noopener">사파리에서 열기</a>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+  <p class="sub mt">검색 1회 = 쿼터 100, 재생목록 생성 1회 + 곡 추가 1곡당 각 50이 들어가요. 하루 한도는 10,000이라 한 번에 20~30곡씩, 하루 서너 번 정도 쓰면 돼요. 한 번 찾은 곡은 폰에 저장돼서 다시 안 깎여요.</p>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+let songs = [];          // {query, items:[{id,title,ch,thumb}], idx, removed}
+let token = null, tokenExp = 0;
+let busy = false;
+
+function decode(s){ const t = document.createElement('textarea'); t.innerHTML = s; return t.value; }
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function showMsg(text, ok){
+  const m = $('#msg');
+  if(!text){ m.style.display = 'none'; return; }
+  m.textContent = text;
+  m.className = ok ? 'ok' : '';
+  m.style.display = 'block';
+}
+
+function parseLines(text){
+  return text.split(/\r?\n/)
+    .map(l => l.replace(/^\s*(?:\d+\s*[\.\)]|[-*•·▪])\s*/, '').replace(/^["'“‘]+|["'”’]+$/g, '').trim())
+    .filter(Boolean);
+}
+
+/* ---------- 구글 로그인 (토큰 방식) ---------- */
+function getToken(){
+  return new Promise((resolve, reject) => {
+    if(token && Date.now() < tokenExp - 60000) return resolve(token);
+    const cid = $('#cid').value.trim();
+    if(!cid){ $('#setup').open = true; return reject(new Error('위쪽 “구글 설정”에서 클라이언트 ID를 먼저 넣어줘')); }
+    if(!window.google || !google.accounts){ return reject(new Error('구글 로그인 스크립트를 못 불러왔어. 인터넷 연결을 확인하고 새로고침해줘')); }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: cid,
+      scope: 'https://www.googleapis.com/auth/youtube',
+      callback: r => {
+        if(r.error) return reject(new Error('로그인 실패: ' + r.error));
+        token = r.access_token;
+        tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
+        resolve(token);
+      },
+      error_callback: e => reject(new Error('로그인 창이 닫혔거나 막혔어 (' + (e && (e.type || e.message) || 'unknown') + ')'))
+    });
+    client.requestAccessToken({ prompt: '' });
+  });
+}
+
+async function api(path, opt){
+  opt = opt || {};
+  const t = await getToken();
+  const url = new URL('https://www.googleapis.com/youtube/v3/' + path);
+  if(opt.params) for(const k in opt.params) url.searchParams.set(k, opt.params[k]);
+  const headers = { Authorization: 'Bearer ' + t };
+  if(opt.body) headers['Content-Type'] = 'application/json';
+  const r = await fetch(url, { method: opt.method || 'GET', headers, body: opt.body ? JSON.stringify(opt.body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok){
+    const err = new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    err.status = r.status;
+    err.reason = (j.error && j.error.errors && j.error.errors[0] && j.error.errors[0].reason) || '';
+    throw err;
+  }
+  return j;
+}
+
+function friendly(e){
+  if(e.reason === 'quotaExceeded' || e.reason === 'rateLimitExceeded') return '오늘 쓸 수 있는 유튜브 쿼터를 다 썼어. 내일(한국 시간 오후 5시쯤 초기화) 다시 해줘';
+  if(e.status === 401) return '로그인이 만료됐어. 버튼을 다시 눌러줘';
+  if(e.status === 403 && /not been used|disabled/i.test(e.message)) return 'YouTube Data API v3가 사용 설정이 안 돼 있어. 구글 클라우드에서 켜줘';
+  return e.message || String(e);
+}
+
+/* ---------- 검색 ---------- */
+async function searchSong(q, audio){
+  const key = q + '|' + (audio ? 1 : 0);
+  const cache = LS.get('ytcache', {});
+  if(cache[key]) return { items: cache[key], cached: true };
+  const j = await api('search', { params: {
+    part: 'snippet', type: 'video', videoCategoryId: '10', maxResults: '5',
+    q: audio ? q + ' official audio' : q
+  }});
+  const items = (j.items || []).filter(it => it.id && it.id.videoId).map(it => ({
+    id: it.id.videoId,
+    title: decode(it.snippet.title),
+    ch: decode(it.snippet.channelTitle),
+    thumb: (it.snippet.thumbnails && (it.snippet.thumbnails.medium || it.snippet.thumbnails.default) || {}).url || ''
+  }));
+  cache[key] = items;
+  const keys = Object.keys(cache);
+  if(keys.length > 400) keys.slice(0, keys.length - 400).forEach(k => delete cache[k]);
+  LS.set('ytcache', cache);
+  return { items, cached: false };
+}
+
+async function doSearch(){
+  if(busy) return;
+  showMsg('');
+  const lines = parseLines($('#list').value);
+  if(!lines.length){ showMsg('곡 목록을 먼저 붙여넣어줘'); return; }
+  if(lines.length > 60){ showMsg('한 번에 60곡까지만 돼. 나눠서 해줘'); return; }
+  busy = true;
+  $('#btnSearch').disabled = true;
+  $('#done').classList.add('hide');
+  LS.set('lastList', $('#list').value);
+  LS.set('optAudio', $('#optAudio').checked);
+  const audio = $('#optAudio').checked;
+  try{
+    await getToken();                 // 사용자 클릭 직후에 로그인 창을 먼저 띄움
+    songs = [];
+    const bar = $('#bar'); bar.style.display = 'block';
+    for(let i = 0; i < lines.length; i++){
+      $('#log').textContent = '찾는 중… ' + (i + 1) + ' / ' + lines.length + '  ' + lines[i];
+      bar.firstChild.style.width = ((i) / lines.length * 100) + '%';
+      const r = await searchSong(lines[i], audio);
+      songs.push({ query: lines[i], items: r.items, idx: 0, removed: false });
+      if(!r.cached) await sleep(120);
+    }
+    bar.firstChild.style.width = '100%';
+    const miss = songs.filter(s => !s.items.length).length;
+    $('#log').textContent = '총 ' + songs.length + '곡 찾았어' + (miss ? ' (못 찾은 곡 ' + miss + '개)' : '') + '. 이상한 곡은 ◀ ▶ 로 바꾸거나 ✕ 로 빼줘';
+    renderSongs();
+    $('#resultCard').classList.remove('hide');
+    if(!$('#plName').value){
+      const d = new Date();
+      $('#plName').value = '추천 재생목록 ' + (d.getMonth() + 1) + '/' + d.getDate();
+    }
+  }catch(e){
+    showMsg(friendly(e));
+    $('#log').textContent = '';
+    if(songs.length){ renderSongs(); $('#resultCard').classList.remove('hide'); }
+  }finally{
+    busy = false;
+    $('#btnSearch').disabled = false;
+    setTimeout(() => { $('#bar').style.display = 'none'; }, 600);
+  }
+}
+
+/* ---------- 목록 화면 ---------- */
+function renderSongs(){
+  const box = $('#songs');
+  box.textContent = '';
+  songs.forEach((s, i) => {
+    const cur = s.items[s.idx];
+    const row = document.createElement('div');
+    row.className = 'song' + (s.removed ? ' off' : '') + (cur ? '' : ' miss');
+    row.dataset.i = i;
+
+    const img = document.createElement('img');
+    if(cur && cur.thumb) img.src = cur.thumb;
+    img.alt = '';
+    row.appendChild(img);
+
+    const info = document.createElement('div');
+    info.className = 'info';
+    const q = document.createElement('div'); q.className = 'q'; q.textContent = s.query;
+    const t = document.createElement('div'); t.className = 't'; t.textContent = cur ? cur.title : '검색 결과가 없어요';
+    const ch = document.createElement('div'); ch.className = 'ch'; ch.textContent = cur ? cur.ch : '';
+    info.append(q, t, ch);
+
+    const ctl = document.createElement('div');
+    ctl.className = 'ctl';
+    const prev = document.createElement('button'); prev.textContent = '◀'; prev.dataset.act = 'prev';
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = s.items.length ? (s.idx + 1) + '/' + s.items.length : '-';
+    const next = document.createElement('button'); next.textContent = '▶'; next.dataset.act = 'next';
+    const del = document.createElement('button'); del.textContent = s.removed ? '↩' : '✕'; del.dataset.act = 'del';
+    if(s.items.length > 1) ctl.append(prev, n, next);
+    ctl.append(del);
+    info.appendChild(ctl);
+
+    row.appendChild(info);
+    box.appendChild(row);
+  });
+  const cnt = songs.filter(s => !s.removed && s.items.length).length;
+  $('#btnMake').textContent = '▶ 재생목록 만들기 (' + cnt + '곡)';
+  $('#btnMake').disabled = !cnt;
+}
+
+$('#songs').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if(!b) return;
+  const row = b.closest('.song');
+  const s = songs[+row.dataset.i];
+  if(!s) return;
+  const act = b.dataset.act;
+  if(act === 'prev') s.idx = (s.idx - 1 + s.items.length) % s.items.length;
+  if(act === 'next') s.idx = (s.idx + 1) % s.items.length;
+  if(act === 'del') s.removed = !s.removed;
+  renderSongs();
+});
+
+/* ---------- 재생목록 생성 ---------- */
+async function withRetry(fn){
+  try{ return await fn(); }
+  catch(e){
+    if(e.status === 409 || e.status >= 500){ await sleep(900); return await fn(); }
+    throw e;
+  }
+}
+
+async function makePlaylist(){
+  if(busy) return;
+  showMsg('');
+  const list = songs.filter(s => !s.removed && s.items.length);
+  if(!list.length) return;
+  busy = true;
+  $('#btnMake').disabled = true;
+  $('#btnSearch').disabled = true;
+  $('#done').classList.add('hide');
+  const bar = $('#bar'); bar.style.display = 'block'; bar.firstChild.style.width = '0';
+  let pid = null, ok = 0, fail = 0;
+  try{
+    await getToken();
+    const title = $('#plName').value.trim() || '추천 재생목록';
+    $('#log').textContent = '재생목록 만드는 중…';
+    const pl = await withRetry(() => api('playlists', {
+      method: 'POST',
+      params: { part: 'snippet,status' },
+      body: { snippet: { title, description: '재생목록 메이커로 만듦' }, status: { privacyStatus: $('#priv').value } }
+    }));
+    pid = pl.id;
+    for(let i = 0; i < list.length; i++){
+      const s = list[i];
+      $('#log').textContent = '곡 추가 중… ' + (i + 1) + ' / ' + list.length + '  ' + s.query;
+      bar.firstChild.style.width = (i / list.length * 100) + '%';
+      try{
+        await withRetry(() => api('playlistItems', {
+          method: 'POST',
+          params: { part: 'snippet' },
+          body: { snippet: { playlistId: pid, resourceId: { kind: 'youtube#video', videoId: s.items[s.idx].id } } }
+        }));
+        ok++;
+      }catch(e){
+        if(e.reason === 'quotaExceeded') throw e;
+        fail++;
+      }
+      await sleep(150);
+    }
+    bar.firstChild.style.width = '100%';
+    $('#log').textContent = '';
+    showMsg('완료! ' + ok + '곡 담았어' + (fail ? ' (' + fail + '곡은 실패)' : ''), true);
+  }catch(e){
+    $('#log').textContent = '';
+    showMsg(friendly(e) + (pid ? ' — 재생목록은 만들어졌고 ' + ok + '곡까지 담겼어' : ''));
+  }finally{
+    if(pid){
+      $('#openApp').href = 'youtube://www.youtube.com/playlist?list=' + pid;
+      $('#openWeb').href = 'https://www.youtube.com/playlist?list=' + pid;
+      $('#done').classList.remove('hide');
+    }
+    busy = false;
+    $('#btnMake').disabled = false;
+    $('#btnSearch').disabled = false;
+    setTimeout(() => { bar.style.display = 'none'; }, 600);
+  }
+}
+
+/* ---------- 초기화 ---------- */
+$('#btnSearch').addEventListener('click', doSearch);
+$('#btnMake').addEventListener('click', makePlaylist);
+$('#cid').value = LS.get('cid', '');
+$('#cid').addEventListener('change', () => { LS.set('cid', $('#cid').value.trim()); token = null; });
+$('#list').value = LS.get('lastList', '');
+$('#optAudio').checked = LS.get('optAudio', true);
+if(!$('#cid').value) $('#setup').open = true;
+</script>
+</body>
+</html>
