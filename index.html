@@ -99,7 +99,10 @@ button.gray,.btn.gray,.ctl button,.item button{background:#e4e7ec;color:#1b1d22}
     <label for="list">추천받은 글을 그대로 붙여넣어줘 (가수 - 곡 / 곡 - 가수 어느 쪽이든 돼요)</label>
     <textarea id="list" placeholder="아이유 - 밤편지&#10;10cc - Dreadlock Holiday&#10;Norah Jones - Don't Know Why"></textarea>
     <label class="chk"><input type="checkbox" id="optAudio" checked> 검색어에 “official audio” 붙이기 (커버·라이브 줄이기)</label>
-    <button class="mt" id="btnParse">✂️ 곡 뽑기</button>
+    <div class="row mt">
+      <button id="btnParse">✂️ 곡 뽑기</button>
+      <button class="gray" id="btnReset">🔄 초기화</button>
+    </div>
  
  
   </div>
@@ -132,7 +135,7 @@ button.gray,.btn.gray,.ctl button,.item button{background:#e4e7ec;color:#1b1d22}
     <div id="done" class="hide mt">
       <a class="btn red" id="openApp" href="#">유튜브 앱에서 열기</a>
       <a class="btn gray mt" id="openWeb" href="#" target="_blank" rel="noopener">사파리에서 열기</a>
-      <button class="gray mt" id="btnReset">🔄 새로 시작하기</button>
+ 
     </div>
   </div>
 
@@ -514,6 +517,8 @@ $('#items').addEventListener('click', e => {
 });
 $('#btnMake').addEventListener('click', makePlaylist);
 $('#btnReset').addEventListener('click', () => {
+  if(busy){ showMsg('검색이나 만들기가 끝난 뒤에 눌러줘'); return; }
+  if(($('#list').value.trim() || parsed.length || songs.length) && !confirm('입력한 곡 목록과 결과를 모두 지울까?')) return;
   songs = []; parsed = [];
   $('#list').value = ''; LS.set('lastList', '');
   $('#items').textContent = ''; $('#songs').textContent = '';
