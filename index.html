@@ -132,6 +132,7 @@ button.gray,.btn.gray,.ctl button,.item button{background:#e4e7ec;color:#1b1d22}
     <div id="done" class="hide mt">
       <a class="btn red" id="openApp" href="#">유튜브 앱에서 열기</a>
       <a class="btn gray mt" id="openWeb" href="#" target="_blank" rel="noopener">사파리에서 열기</a>
+      <button class="gray mt" id="btnReset">🔄 새로 시작하기</button>
     </div>
   </div>
 
@@ -512,6 +513,18 @@ $('#items').addEventListener('click', e => {
   renderItems();
 });
 $('#btnMake').addEventListener('click', makePlaylist);
+$('#btnReset').addEventListener('click', () => {
+  songs = []; parsed = [];
+  $('#list').value = ''; LS.set('lastList', '');
+  $('#items').textContent = ''; $('#songs').textContent = '';
+  $('#plName').value = '';
+  $('#log').textContent = ''; showMsg('');
+  $('#bar').style.display = 'none';
+  $('#done').classList.add('hide');
+  $('#confirmCard').classList.add('hide');
+  $('#resultCard').classList.add('hide');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
 $('#cid').value = LS.get('cid', '925648571250-7o0v80g1inpsllib0bup1530ito5olti.apps.googleusercontent.com');
 $('#cid').addEventListener('change', () => { LS.set('cid', $('#cid').value.trim()); token = null; });
 $('#list').value = LS.get('lastList', '');
