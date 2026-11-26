@@ -186,12 +186,17 @@ function friendly(e){
 
 /* ---------- 검색 ---------- */
 async function searchSong(q, audio){
+  let r = await searchSongOnce(q, audio, true);
+  if(!r.items.length) r = await searchSongOnce(q, audio, false);
+  return r;
+}
+async function searchSongOnce(q, audio, strict){
   const key = q + '|' + (audio ? 1 : 0);
   const cache = LS.get('ytcache', {});
-  if(cache[key]) return { items: cache[key], cached: true };
+  if(cache[key] && cache[key].length) return { items: cache[key], cached: true };
   const j = await api('search', { params: {
-    part: 'snippet', type: 'video', videoCategoryId: '10', maxResults: '5',
-    q: audio ? q + ' official audio' : q
+    part: 'snippet', type: 'video', ...(strict ? { videoCategoryId: '10' } : {}), maxResults: '5',
+    q: (audio && strict) ? q + ' official audio' : q
   }});
   const items = (j.items || []).filter(it => it.id && it.id.videoId).map(it => ({
     id: it.id.videoId,
@@ -199,7 +204,7 @@ async function searchSong(q, audio){
     ch: decode(it.snippet.channelTitle),
     thumb: (it.snippet.thumbnails && (it.snippet.thumbnails.medium || it.snippet.thumbnails.default) || {}).url || ''
   }));
-  cache[key] = items;
+  if(items.length) cache[key] = items;
   const keys = Object.keys(cache);
   if(keys.length > 400) keys.slice(0, keys.length - 400).forEach(k => delete cache[k]);
   LS.set('ytcache', cache);
@@ -351,7 +356,8 @@ async function makePlaylist(){
     }
     bar.firstChild.style.width = '100%';
     $('#log').textContent = '';
-    showMsg('완료! ' + ok + '곡 담았어' + (fail ? ' (' + fail + '곡은 실패)' : ''), true);
+    const skipped = songs.filter(s => !s.removed && !s.items.length).map(s => s.query);
+    showMsg('완료! ' + ok + '곡 담았어' + (fail ? ' (' + fail + '곡은 실패)' : '') + (skipped.length ? ' — 검색 결과가 없어서 빠진 곡: ' + skipped.join(', ') : ''), true);
   }catch(e){
     $('#log').textContent = '';
     showMsg(friendly(e) + (pid ? ' — 재생목록은 만들어졌고 ' + ok + '곡까지 담겼어' : ''));
