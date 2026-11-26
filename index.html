@@ -369,7 +369,7 @@ async function makePlaylist(){
 /* ---------- 초기화 ---------- */
 $('#btnSearch').addEventListener('click', doSearch);
 $('#btnMake').addEventListener('click', makePlaylist);
-$('#cid').value = LS.get('cid', '');
+$('#cid').value = LS.get('cid', '925648571250-7o0v80g1inpsllib0bup1530ito5olti.apps.googleusercontent.com');
 $('#cid').addEventListener('change', () => { LS.set('cid', $('#cid').value.trim()); token = null; });
 $('#list').value = LS.get('lastList', '');
 $('#optAudio').checked = LS.get('optAudio', true);
