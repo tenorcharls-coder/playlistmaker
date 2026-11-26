@@ -50,6 +50,12 @@ code{background:#111317;padding:1px 5px;border-radius:5px;font-size:12.5px;word-
 #msg.ok{background:#1f3326;color:#aef0bf}
 .bar{height:6px;background:#111317;border-radius:99px;overflow:hidden;margin-top:10px;display:none}
 .bar i{display:block;height:100%;width:0;background:var(--ac2);transition:width .2s}
+.ttl{font-size:16px;font-weight:700}
+.item{display:flex;gap:8px;align-items:center;margin:6px 0}
+.item input[type=checkbox]{width:20px;height:20px;flex:none}
+.item input[type=text]{flex:1;min-width:0;padding:9px 10px;font-size:15px}
+.item button{padding:6px 10px;font-size:13px;background:#343a45;flex:none}
+.item.warn input[type=text]{border-color:#ffb04d}
 .hide{display:none}
 </style>
 </head>
@@ -75,10 +81,20 @@ code{background:#111317;padding:1px 5px;border-radius:5px;font-size:12.5px;word-
   </div>
 
   <div class="card">
-    <label for="list">곡 목록 (한 줄에 한 곡, 예: 아이유 - 밤편지)</label>
+    <label for="list">추천받은 글을 그대로 붙여넣어줘 (가수 - 곡 / 곡 - 가수 어느 쪽이든 돼요)</label>
     <textarea id="list" placeholder="아이유 - 밤편지&#10;10cc - Dreadlock Holiday&#10;Norah Jones - Don't Know Why"></textarea>
     <label class="chk"><input type="checkbox" id="optAudio" checked> 검색어에 “official audio” 붙이기 (커버·라이브 줄이기)</label>
-    <button class="mt" id="btnSearch">🔍 곡 찾기</button>
+    <button class="mt" id="btnParse">✂️ 곡 뽑기</button>
+ 
+ 
+  </div>
+
+  <div class="card hide" id="confirmCard">
+    <div class="ttl">이 곡들이 맞나요?</div>
+    <p class="sub" style="margin:4px 0 10px">틀린 건 고치고, 아닌 건 체크를 풀거나 ✕로 지워줘</p>
+    <div id="items"></div>
+    <button class="gray mt" id="btnAddItem">＋ 곡 직접 추가</button>
+    <button class="mt" id="btnSearch">🔍 이 곡들로 검색</button>
     <div class="bar" id="bar"><i></i></div>
     <div id="log"></div>
   </div>
@@ -135,6 +151,73 @@ function parseLines(text){
   return text.split(/\r?\n/)
     .map(l => l.replace(/^\s*(?:\d+\s*[\.\)]|[-*•·▪])\s*/, '').replace(/^["'“‘]+|["'”’]+$/g, '').trim())
     .filter(Boolean);
+}
+
+/* ---------- 곡 뽑기 / 확인 ---------- */
+let parsed = [];
+function parseSongs(text){
+  const out = [], seen = new Set();
+  text.split(/\r?\n/).forEach(raw => {
+    if(/^\s*#/.test(raw)) return;
+    let s = raw.replace(/\*+|\x60+/g, '').replace(/^\s*[#>]+\s*/, '')
+      .replace(/^\s*(?:\d+\s*[\.\)]|[-–•·▪●○◆◇■□▶►])\s*/, '')
+      .replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim();
+    if(!s || /[:：]\s*$/.test(s)) return;
+    let q = '', sure = true;
+    const m = s.match(/[“"「『《〈‘]([^”"」』》〉’]{1,80})[”"」』》〉’]/);
+    if(m){
+      const rest = (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length))
+        .replace(/\bby\b/gi, ' ').replace(/[(（][^)）]*[)）]/g, ' ')
+        .replace(/[:：,，]+/g, ' ').replace(/\s+/g, ' ')
+        .replace(/^[-–—\s]+|[-–—\s]+$/g, '').replace(/의$/, '').trim();
+      q = (rest && rest.length <= 40) ? rest + ' - ' + m[1].trim() : m[1].trim();
+      sure = !rest || rest.length <= 40;
+    }else{
+      const p = s.split(/\s+[-–—−]\s+|\s+[|｜]\s+|\s+\/\s+/);
+      if(p.length >= 2){
+        const a = p[0].trim(), b = p[1].replace(/\s*[:：]\s.*$/, '').replace(/\s*[(（][^)）]*[가-힣][^)）]*[)）]\s*$/, '').trim();
+        q = a + ' - ' + b;
+        sure = a.length <= 40 && b.length <= 60;
+      }else{
+        q = s.replace(/\s*[:：]\s.*$/, '').replace(/\s*[(（][^)）]*[가-힣][^)）]*[)）]\s*$/, '').trim();
+        sure = q.length <= 50 && !/[.!?。]$/.test(q);
+      }
+    }
+    q = q.trim();
+    if(!q) return;
+    const key = q.toLowerCase();
+    if(seen.has(key)) return;
+    seen.add(key);
+    out.push({ q, on: sure });
+  });
+  return out;
+}
+
+function updateSearchBtn(){
+  const n = parsed.filter(p => p.on && p.q.trim()).length;
+  $('#btnSearch').textContent = '🔍 이 곡들로 검색 (' + n + '곡)';
+  $('#btnSearch').disabled = !n;
+}
+
+function renderItems(){
+  const box = $('#items');
+  box.textContent = '';
+  parsed.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'item' + (p.on ? '' : ' warn');
+    row.dataset.i = i;
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = p.on; cb.dataset.act = 'on';
+    const tx = document.createElement('input'); tx.type = 'text'; tx.value = p.q; tx.dataset.act = 'q';
+    tx.autocapitalize = 'off'; tx.spellcheck = false;
+    const del = document.createElement('button'); del.textContent = '✕'; del.dataset.act = 'del';
+    row.append(cb, tx, del);
+    box.appendChild(row);
+  });
+  updateSearchBtn();
+}
+
+function confirmedLines(){
+  return parsed.filter(p => p.on && p.q.trim()).map(p => p.q.trim());
 }
 
 /* ---------- 구글 로그인 (토큰 방식) ---------- */
@@ -214,8 +297,8 @@ async function searchSongOnce(q, audio, strict){
 async function doSearch(){
   if(busy) return;
   showMsg('');
-  const lines = parseLines($('#list').value);
-  if(!lines.length){ showMsg('곡 목록을 먼저 붙여넣어줘'); return; }
+  const lines = confirmedLines();
+  if(!lines.length){ showMsg('검색할 곡을 하나 이상 체크해줘'); return; }
   if(lines.length > 60){ showMsg('한 번에 60곡까지만 돼. 나눠서 해줘'); return; }
   busy = true;
   $('#btnSearch').disabled = true;
@@ -376,6 +459,43 @@ async function makePlaylist(){
 
 /* ---------- 초기화 ---------- */
 $('#btnSearch').addEventListener('click', doSearch);
+$('#btnParse').addEventListener('click', () => {
+  showMsg('');
+  const text = $('#list').value;
+  LS.set('lastList', text);
+  parsed = parseSongs(text);
+  if(!parsed.length){ showMsg('곡을 못 찾았어. 가수 - 곡 형태로 적어줘'); return; }
+  renderItems();
+  $('#confirmCard').classList.remove('hide');
+  $('#resultCard').classList.add('hide');
+  $('#confirmCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+$('#btnAddItem').addEventListener('click', () => {
+  parsed.push({ q: '', on: true });
+  renderItems();
+  const ins = $('#items').querySelectorAll('input[type=text]');
+  ins[ins.length - 1].focus();
+});
+$('#items').addEventListener('input', e => {
+  const row = e.target.closest('.item');
+  if(!row || e.target.dataset.act !== 'q') return;
+  parsed[+row.dataset.i].q = e.target.value;
+  updateSearchBtn();
+});
+$('#items').addEventListener('change', e => {
+  const row = e.target.closest('.item');
+  if(!row || e.target.dataset.act !== 'on') return;
+  parsed[+row.dataset.i].on = e.target.checked;
+  row.classList.toggle('warn', !e.target.checked);
+  updateSearchBtn();
+});
+$('#items').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if(!b) return;
+  const row = b.closest('.item');
+  parsed.splice(+row.dataset.i, 1);
+  renderItems();
+});
 $('#btnMake').addEventListener('click', makePlaylist);
 $('#cid').value = LS.get('cid', '925648571250-7o0v80g1inpsllib0bup1530ito5olti.apps.googleusercontent.com');
 $('#cid').addEventListener('change', () => { LS.set('cid', $('#cid').value.trim()); token = null; });
